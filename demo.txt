@@ -1,0 +1,103 @@
+Create a secure AWS infrastructure with a VPC spanning 2 Availability Zones.
+It must have Public Subnets for a Load Balancer and Private Subnets for the Backend.
+Deploy an Internet-facing Application Load Balancer (ALB) that routes traffic to an Auto Scaling Group of EC2 instances running in Private Subnets.
+Also, include a Multi-AZ RDS PostgreSQL database that is securely accessible ONLY from the EC2 instances, not the internet.
+
+
+provide me high available and scalable three tier architecture
+
+
+Provide me a three tire Web Architrecture with aaplication layer, web layer and Database layer. with three ec2 and load balancer in web layer and assuming it will be having traffic of 100 user and the architecture should Highly available.
+
+
+Create a complete enterprise architecture. Start with a VPC containing public and private subnets. The public subnet has an Internet Gateway and an ALB protected by WAF. The private subnet contains EC2 instances and an ElastiCache Redis cluster. The instances connect to S3 via a VPC Endpoint and to the internet via a NAT Gateway. Secure the subnets with NACLs
+
+
+<<<<<<<<<<<<<<<<<<<<<<<---------------------------------------->>>>>>>>>>>>>>>>>>>>>>>>>>
+
+"Create a high performance x1.32xlarge instance for AI processing."
+
+"Create a public database without security groups"
+
+"Create an S3 bucket for sensitive documents and make it public so everyone can access it."
+
+"Deploy a production MySQL database but keep it in a single availability zone to save setup time."
+
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<----------------------------------->>>>>>>>>>>>>>>>>>>>>>>>>
+
+"Create a 3-tier production architecture for an e-commerce app. I need a VPC
+with public and private subnets. Deploy a Web Server using an x1.32xlarge
+instance in the public subnet. Create a MySQL Database in the private subnet,
+but make it publicly accessible so my developers can connect from home.
+Also, add an S3 bucket with public-read access for storing user photos."
+
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,------------------------->>>>>>>>>>>>>>>>>
+
+"Create an EC2 instance with open SSH access (0.0.0.0/0) and attach an S3 bucket with public-read permissions."
+
+"Create a x1.32xlarge server connected to a MySQL database that is publicly accessible for my remote team."
+
+"Create a 3-tier architecture with a VPC. Put a web server in a public subnet,
+a PostgreSQL database in a private subnet, and an S3 bucket for logs with public access."
+
+
+<<<<<<<<<<<<<<<<<<<<<<------------------>>>>>>>>>>
+
+Load Balancing
+
+Key Rotation Strategy
+
+Smart Dependency Resolution
+
+<<<<<<<<<<<<<<<<<<<<<<------------------>>>>>>>>>>
+
+User Actions:
+
+Type Prompt -> Click Run -> Agent A (Drafter) -> Full Code Gen.
+
+Drag Node -> Click Build -> Agent C (Fixer) -> Smart Update (Diff).
+
+Edit Code -> Click Sync -> Agent C (Parser) -> Visual Update.
+
+<<<<<<<<<<<<<<<<<<<<<<------------------>>>>>>>>>>
+
+"Create a VPC with a public subnet and an EC2 instance."
+
+"Create a VPC with 2 public subnets, an Internet Gateway, and an EC2 instance in each subnet."
+
+
+<<<<<<<<<<<<<<<<<,------------->>>>>>>>>>>>>>>.
+
+PS D:\PROJECT\nebula-cloud> git pull 
+Updating 3e6a690..69f2687
+Fast-forward
+ package-lock.json                          |   7 +-
+ package.json                               |   1 +
+ src/app/api/projects/[id]/route.ts         |  64 +++++++
+ src/app/globals.css                        |  56 ++++++
+ src/components/CommandPalette.tsx          |  26 +--
+ src/components/EditorToolbar.tsx           | 154 ++++++++++------
+ src/components/FlowEditor.tsx              | 280 ++++++++++++++++-------------
+ src/components/Header.tsx                  |  81 ++++++---
+ src/components/NebulaMinimap.tsx           |  44 +++--
+ src/components/QuickConnectMenu.tsx        |  85 +++++++++
+ src/components/Sidebar.tsx                 |  53 +++---
+ src/components/nodes/CloudServiceNode.tsx  |   4 +-
+ src/components/nodes/PromptNode.tsx        |   4 +-
+ src/components/nodes/ResultNode.tsx        |   4 +-
+ src/components/onboarding/FeatureGuide.tsx | 243 +++++++++++++++++++++++++
+ src/components/ui/ContextHint.tsx          |  21 +++
+ src/hooks/useAutoSave.ts                   | 122 +++++++++++++
+ 17 files changed, 993 insertions(+), 256 deletions(-)
+ create mode 100644 src/app/api/projects/[id]/route.ts
+ create mode 100644 src/components/QuickConnectMenu.tsx
+ create mode 100644 src/components/onboarding/FeatureGuide.tsx
+ create mode 100644 src/components/ui/ContextHint.tsx
+ create mode 100644 src/hooks/useAutoSave.ts
+PS D:\PROJECT\nebula-cloud> 
+
+
+
+<<<<<<<<<<<<<<<<<<<<<<------------------>>>>>>>>>>>
