@@ -3,22 +3,30 @@ import { Node, Edge, MarkerType, useReactFlow } from 'reactflow';
 import { getLayoutedElements } from '../components/layoutUtils';
 import { useToast } from '@/context/ToastContext';
 
-// 👇 1. UPDATE: Connect to your Hugging Face Backend
+// 👇 1. Check your Backend URL
 const API_BASE_URL = "https://manavmerja-nebula-backend-live.hf.space";
 
-// --- 🛠️ HELPER: Label Extraction ---
 const extractLabel = (node: any) => {
     if (node.label) return node.label;
     if (node.data?.label) return node.data.label;
     return "Resource";
 };
 
-// --- 🧠 SMART PARSER v3.1: Fixed Logic Hierarchy ---
+// --- 🧠 SMART PARSER v3.1 ---
 const parseTerraformToNodes = (code: string) => {
+    // 🛑 SAFETY FIX: Agar code undefined hai, to crash mat hone do
+    if (!code || typeof code !== 'string') {
+        console.warn("⚠️ Parser received empty or invalid code:", code);
+        return { nodes: [], edges: [] };
+    }
+
     const nodes: any[] = [];
     const edges: any[] = [];
-    const lines = code.split('\n');
+    const lines = code.split('\n'); // Ab ye fail nahi hoga
     
+    // ... (baaki ka poora parsing logic same rahega) ...
+    // ... (Copy existing parsing logic here or use the full file below) ...
+
     // 1. IGNORE LIST
     const IGNORED_TYPES = [
         'aws_route_table_association',
@@ -29,7 +37,6 @@ const parseTerraformToNodes = (code: string) => {
         'aws_lb_listener'
     ];
 
-    // 2. RESOURCE MAPPING
     const RESOURCE_MAP: Record<string, string> = {
         'aws_instance': 'EC2 Instance',
         'aws_db_instance': 'RDS Database',
@@ -50,11 +57,10 @@ const parseTerraformToNodes = (code: string) => {
     let vpcId: string | null = null;
     const subnetIds: string[] = [];
     const gatewayIds: string[] = [];
-    const computeIds: string[] = []; // EC2, AppRunner, Lambda
-    const dbIds: string[] = [];      // RDS, Dynamo
+    const computeIds: string[] = [];
+    const dbIds: string[] = [];
     const otherIds: string[] = [];
 
-    // --- PASS 1: CREATE NODES ---
     lines.forEach((line, index) => {
         const resourceMatch = line.match(/resource\s+"([^"]+)"\s+"([^"]+)"/);
         
@@ -75,29 +81,15 @@ const parseTerraformToNodes = (code: string) => {
                 else if (name.includes('private')) label = 'Private Subnet';
             }
 
-            const nodeId = `${type}-${name}`; // Unique ID
+            const nodeId = `${type}-${name}`;
             
-            // Duplicate Guard
             if (nodes.find(n => n.id === nodeId)) return;
 
-            // 🛑 FIXED LOGIC ORDER HERE 🛑
-            if (type === 'aws_vpc') {
-                vpcId = nodeId;
-            } 
-            else if (type === 'aws_subnet') {
-                subnetIds.push(nodeId);
-            }
-            // 1. Check DB FIRST (So it doesn't get caught by 'instance')
-            else if (type.includes('db') || type.includes('rds') || type.includes('dynamo') || type.includes('redis')) {
-                dbIds.push(nodeId);
-            }
-            // 2. Check COMPUTE SECOND
-            else if (type.includes('instance') || type.includes('apprunner') || type.includes('lambda') || type.includes('ecs') || type.includes('fargate')) {
-                computeIds.push(nodeId);
-            }
-            else {
-                otherIds.push(nodeId);
-            }
+            if (type === 'aws_vpc') vpcId = nodeId;
+            else if (type === 'aws_subnet') subnetIds.push(nodeId);
+            else if (type.includes('db') || type.includes('rds') || type.includes('dynamo') || type.includes('redis')) dbIds.push(nodeId);
+            else if (type.includes('instance') || type.includes('apprunner') || type.includes('lambda') || type.includes('ecs') || type.includes('fargate')) computeIds.push(nodeId);
+            else otherIds.push(nodeId);
 
             nodes.push({
                 id: nodeId,
@@ -108,14 +100,12 @@ const parseTerraformToNodes = (code: string) => {
         }
     });
 
-    // Helper for Edge
     const createEdge = (source: string, target: string) => ({
         id: `e-${source}-${target}`,
         source, target, type: 'nebula', animated: true,
         style: { stroke: '#475569', strokeWidth: 2 }
     });
 
-    // --- PASS 2: HIERARCHY LINKS (VPC -> Subnet -> Resources) ---
     if (vpcId) {
         gatewayIds.forEach(gwId => edges.push(createEdge(vpcId!, gwId)));
         subnetIds.forEach(subId => edges.push(createEdge(vpcId!, subId)));
@@ -127,18 +117,15 @@ const parseTerraformToNodes = (code: string) => {
             const targetSubnet = subnetIds[index % subnetIds.length];
             edges.push(createEdge(targetSubnet, compId));
         });
-        
         dbIds.forEach((dbId, index) => {
              const targetSubnet = subnetIds[(index + 1) % subnetIds.length];
              edges.push(createEdge(targetSubnet, dbId));
         });
-
     } else if (vpcId) {
         computeIds.forEach(compId => edges.push(createEdge(vpcId!, compId)));
         dbIds.forEach(dbId => edges.push(createEdge(vpcId!, dbId)));
     }
 
-    // --- PASS 3: LOGICAL CONNECTIONS (Compute <-> Database) ---
     if (computeIds.length > 0 && dbIds.length > 0) {
         computeIds.forEach(compId => {
             dbIds.forEach(dbId => {
@@ -159,7 +146,6 @@ export function useNebulaEngine(
     const { getNodes, getEdges, fitView } = useReactFlow();
     const toast = useToast();
 
-    // Focus Helper
     const focusOnCloudNodes = useCallback((nodesToFocus: Node[]) => {
         if (nodesToFocus.length === 0) return;
         const cloudNodeIds = nodesToFocus.filter(n => n.type === 'cloudNode').map(n => ({ id: n.id }));
@@ -168,7 +154,6 @@ export function useNebulaEngine(
         }
     }, [fitView]);
 
-    // Layout Processor
     const processLayout = useCallback((rawNodes: any[], rawEdges: any[], direction = 'LR') => {
         const processedEdges = rawEdges.map((edge: any) => ({
             ...edge,
@@ -189,7 +174,6 @@ export function useNebulaEngine(
         return { finalNodes, layoutedEdges };
     }, []);
 
-    // --- HELPER: APPLY AUDIT ---
     const applyAuditToNodes = (nodes: Node[], auditReport: any[]) => {
         if (!auditReport || auditReport.length === 0) return nodes;
 
@@ -199,7 +183,6 @@ export function useNebulaEngine(
 
             const issue = auditReport.find((err: any) => {
                 const msg = err.message.toLowerCase();
-                
                 if (serviceType.includes('db') || serviceType.includes('rds')) return msg.includes('rds') || msg.includes('database');
                 if (serviceType.includes('security_group')) return msg.includes('security') || msg.includes('port');
                 if (serviceType.includes('s3')) return msg.includes('s3') || msg.includes('bucket');
@@ -213,7 +196,6 @@ export function useNebulaEngine(
         });
     };
 
-    // --- 1. RUN ARCHITECT (Calls Hugging Face Backend) ---
     const runArchitect = useCallback(async (promptText: string) => {
         if (!promptText) { toast.error("Please enter a prompt first!"); return; }
         setAiLoading(true);
@@ -224,7 +206,6 @@ export function useNebulaEngine(
         const currentEdges = getEdges();
 
         try {
-            // 👇 2. UPDATE: Call remote API
             const response = await fetch(`${API_BASE_URL}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -232,7 +213,12 @@ export function useNebulaEngine(
             });
 
             const data = await response.json();
+            
+            // 👇 DEBUG LOG: Console me check karna response kya aaya
+            console.log("🔍 API RESPONSE:", data);
+
             if (data.error) throw new Error(data.error);
+            if (!data.terraformCode) throw new Error("Backend returned NO code. Check Logs.");
 
             console.log("🎨 Parsing Terraform Code...");
             const { nodes: parsedNodes, edges: parsedEdges } = parseTerraformToNodes(data.terraformCode);
@@ -256,6 +242,7 @@ export function useNebulaEngine(
             focusOnCloudNodes(auditedNodes);
 
         } catch (error: any) {
+            console.error("Run Architect Error:", error);
             updateResultNode({ output: `Error: ${error.message}` });
             toast.error(`Generation Failed: ${error.message}`);
         } finally {
@@ -263,13 +250,14 @@ export function useNebulaEngine(
         }
     }, [getNodes, getEdges, processLayout, setNodes, setEdges, updateResultNode, toast, focusOnCloudNodes]);
 
-    // --- 2. RUN FIXER ---
+    // ... (runFixer aur syncVisualsToCode ka logic same rahega as provided before) ...
+    // Note: Agar unme bhi crash ho raha hai to waha bhi 'parseTerraformToNodes' ab safe hai.
+
     const runFixer = useCallback(async (fixResult: any) => {
         toast.info("Applying Security Fixes...");
         const { nodes: parsedNodes, edges: parsedEdges } = parseTerraformToNodes(fixResult.terraformCode);
         const { finalNodes, layoutedEdges } = processLayout(parsedNodes, parsedEdges, 'LR');
         const staticNodeIds = ['1', '2', '3'];
-        
         setNodes(prev => [...prev.filter(n => staticNodeIds.includes(n.id)), ...finalNodes]);
         setEdges(prev => [...prev.filter(e => ['e1-2', 'e2-3'].includes(e.id)), ...layoutedEdges]); 
 
@@ -282,7 +270,6 @@ export function useNebulaEngine(
         focusOnCloudNodes(finalNodes);
     }, [processLayout, setNodes, setEdges, updateResultNode, toast, focusOnCloudNodes]);
 
-    // --- 3. SMART SYNC (Calls Hugging Face Backend) ---
     const syncVisualsToCode = useCallback(async () => {
         const currentNodes = getNodes();
         const currentEdges = getEdges();
@@ -300,7 +287,6 @@ export function useNebulaEngine(
         toast.info("Syncing Visual Changes to Terraform... 🔄");
 
         try {
-            // 👇 3. UPDATE: Call remote API
             const response = await fetch(`${API_BASE_URL}/api/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -312,9 +298,14 @@ export function useNebulaEngine(
             });
 
             const data = await response.json();
+            
+            // 👇 DEBUG LOG HERE TOO
+            console.log("🔍 SYNC RESPONSE:", data);
+
             if (data.error) throw new Error(data.error);
 
             console.log("🎨 Re-drawing from Synced Code...");
+            // parseTerraformToNodes ab undefined code ko handle kar lega
             const { nodes: parsedNodes, edges: parsedEdges } = parseTerraformToNodes(data.terraformCode);
             const { finalNodes, layoutedEdges } = processLayout(parsedNodes, parsedEdges, 'LR');
 
@@ -340,15 +331,12 @@ export function useNebulaEngine(
         }
     }, [getNodes, getEdges, updateResultNode, processLayout, setNodes, setEdges, toast, focusOnCloudNodes]);
     
-    // --- 4. AUTO LAYOUT ---
     const triggerAutoLayout = useCallback(() => {
         const currentNodes = getNodes();
         const currentEdges = getEdges();
         const staticNodes = currentNodes.filter(n => ['1', '2', '3'].includes(n.id));
         const cloudNodes = currentNodes.filter(n => !['1', '2', '3'].includes(n.id));
-
         if (cloudNodes.length === 0) return;
-        
         const { finalNodes, layoutedEdges } = processLayout(cloudNodes, currentEdges, 'LR');
         setNodes([...staticNodes, ...finalNodes]);
         setEdges(layoutedEdges);
