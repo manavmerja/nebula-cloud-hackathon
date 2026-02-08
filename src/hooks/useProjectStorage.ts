@@ -1,25 +1,25 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Dispatch, SetStateAction } from 'react';
 import { Node, Edge } from 'reactflow';
 import { useSession } from "next-auth/react";
 import { useToast } from '@/context/ToastContext';
-import { useRouter, useSearchParams } from "next/navigation"; 
+import { useRouter, useSearchParams } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://manavmerja-nebula-backend-live.hf.space";
 
 export function useProjectStorage(
     nodes: Node[],
     edges: Edge[],
-    setNodes: (nds: Node[]) => void,
-    setEdges: (eds: Edge[]) => void,
+    setNodes: Dispatch<SetStateAction<Node[]>>,
+    setEdges: Dispatch<SetStateAction<Edge[]>>,
     setProjectName: (name: string) => void
 ) {
     const { data: session } = useSession();
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
-    const router = useRouter(); 
+    const router = useRouter();
     const searchParams = useSearchParams();
-    
+
     // ✅ FIX: 'projectId' yahan define hai taaki sab jagah mile
     const projectId = searchParams.get('id');
 
@@ -67,10 +67,10 @@ export function useProjectStorage(
             }
 
             const data = await response.json();
-            
+
             setProjectName(customName);
             toast.success("Project Saved Successfully! 💾");
-            
+
             // ✅ URL SYNC: Agar naya project banaya, to URL update karo
             if (!projectId && data.projectId) {
                 router.replace(`/?id=${data.projectId}`);
@@ -82,28 +82,39 @@ export function useProjectStorage(
         } finally {
             setSaving(false);
         }
-    }, [nodes, edges, session, projectId, router, toast, setProjectName]); 
+    }, [nodes, edges, session, projectId, router, toast, setProjectName]);
 
     // --- LOAD PROJECT ---
     const loadProject = useCallback(async (pid: string) => {
         if (!pid) return;
         setLoading(true);
         try {
-            // Note: Dashboard se data aana chahiye, lekin agar direct URL hit kiya
-            // to hum fetch kar sakte hain (Optional logic)
             console.log("Loading project ID:", pid);
-            
-            // Fetch specific project logic (API route required: /api/projects/[id])
-             const response = await fetch(`${API_BASE}/api/projects/${pid}`);
-             if (response.ok) {
-                 const data = await response.json();
-                 if (data.nodes) setNodes(data.nodes);
-                 if (data.edges) setEdges(data.edges);
-                 if (data.name) setProjectName(data.name);
-                 toast.success(`Loaded: ${data.name}`);
-             }
+
+            // 👇 Verify ye URL sahi hai: /api/projects/${pid}
+            const response = await fetch(`${API_BASE}/api/projects/${pid}`);
+
+            if (!response.ok) throw new Error("Project not found");
+
+            const data = await response.json();
+
+            // 👇 Update State
+            if (data.nodes) setNodes(data.nodes);
+            if (data.edges) setEdges(data.edges);
+            if (data.name) setProjectName(data.name);
+
+            // Terraform Code Restore (Optional)
+            if (data.terraformCode) {
+                setNodes((nds: Node[]) => nds.map((n: Node) =>
+                    n.id === '3' ? { ...n, data: { ...n.data, terraformCode: data.terraformCode } } : n
+                ));
+            }
+
+            toast.success(`Loaded: ${data.name}`);
+
         } catch (error: any) {
             console.error("Load Error:", error);
+            toast.error("Failed to load project");
         } finally {
             setLoading(false);
         }

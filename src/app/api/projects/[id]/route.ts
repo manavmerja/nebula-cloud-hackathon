@@ -1,6 +1,50 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
-import clientPromise from '@/lib/mongodb'; // 👈 Imports your file
+import clientPromise from '@/lib/mongodb';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // 1. Validate ID
+    if (!id || !ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Invalid Project ID" }, { status: 400 });
+    }
+
+    console.log(`[API_GET_ONE] Loading Project: ${id}`);
+
+    // 2. Connect DB
+    const client = await clientPromise;
+    const db = client.db();
+
+    // 3. Find Project
+    const project = await db.collection("projects").findOne({ 
+      _id: new ObjectId(id) 
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // 4. Return Data
+    return NextResponse.json({
+      name: project.name,
+      nodes: project.nodes || [],
+      edges: project.edges || [],
+      terraformCode: project.terraform_code || project.terraformCode || "" // Handle both naming cases
+    });
+
+  } catch (error) {
+    console.error("[API_GET_ONE] Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function PUT(
   request: Request,
