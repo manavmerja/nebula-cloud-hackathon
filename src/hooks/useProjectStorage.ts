@@ -1,10 +1,8 @@
-// Save and Load Project ne Sambhade che
-
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
 import { useSession } from "next-auth/react";
 import { useToast } from '@/context/ToastContext';
-// ❌ REMOVED: import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from "next/navigation"; 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://manavmerja-nebula-backend-live.hf.space";
 
@@ -19,22 +17,25 @@ export function useProjectStorage(
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
-    // ❌ REMOVED: const router = useRouter();
+    const router = useRouter(); 
+    const searchParams = useSearchParams();
+    
+    // ✅ FIX: 'projectId' yahan define hai taaki sab jagah mile
+    const projectId = searchParams.get('id');
 
     // --- SAVE PROJECT ---
-    const saveProject = async (customName: string) => {
+    const saveProject = useCallback(async (customName: string) => {
         if (!session?.user?.email) {
-            toast.error("Please login to save your project! 🔒");
+            toast.error("Please login to save! 🔒");
             return;
         }
 
         setSaving(true);
-        toast.info("Saving project...");
+        toast.info(projectId ? "Updating project..." : "Saving new project...");
 
         try {
             const resultNode = nodes.find(n => n.id === '3');
             let terraformCode = "";
-
             if (resultNode?.data?.terraformCode) {
                 terraformCode = resultNode.data.terraformCode;
             } else if (resultNode?.data?.output) {
@@ -42,14 +43,17 @@ export function useProjectStorage(
                 terraformCode = parts.length > 1 ? parts[1].trim() : resultNode.data.output;
             }
 
+            // ✅ PAYLOAD DEFINITION
             const payload = {
-                user_email: session.user.email,
+                user_email: session.user.email,  // Legacy Schema match
+                projectId: projectId,            // Update Logic
                 name: customName,
-                description: "Created via Nebula Cloud",
                 nodes,
                 edges,
                 terraform_code: terraformCode
             };
+
+            console.log("📤 Sending Data:", payload);
 
             const response = await fetch(`${API_BASE}/api/v1/projects/save`, {
                 method: 'POST',
@@ -57,12 +61,20 @@ export function useProjectStorage(
                 body: JSON.stringify(payload),
             });
 
-            if (!response.ok) throw new Error("Failed to save");
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Failed to save");
+            }
 
+            const data = await response.json();
+            
             setProjectName(customName);
             toast.success("Project Saved Successfully! 💾");
-
-            // ✅ FIXED: Removed redirect. User stays on the editor.
+            
+            // ✅ URL SYNC: Agar naya project banaya, to URL update karo
+            if (!projectId && data.projectId) {
+                router.replace(`/?id=${data.projectId}`);
+            }
 
         } catch (error: any) {
             console.error("Save Error:", error);
@@ -70,32 +82,32 @@ export function useProjectStorage(
         } finally {
             setSaving(false);
         }
-    };
+    }, [nodes, edges, session, projectId, router, toast, setProjectName]); 
 
     // --- LOAD PROJECT ---
-    const loadProject = async (projectId: string) => {
+    const loadProject = useCallback(async (pid: string) => {
+        if (!pid) return;
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE}/api/v1/project/${projectId}`);
-            if (!response.ok) throw new Error("Project not found");
-
-            const data = await response.json();
-            if (data.nodes) setNodes(data.nodes);
-            if (data.edges) setEdges(data.edges);
-            if (data.name) setProjectName(data.name);
-
-            console.log(`Project loaded: ${data.name}`);
-            toast.success(`Project Loaded: ${data.name} 📂`);
-
-            // ✅ FIXED: Removed redirect. User stays on the editor with the new project loaded.
-
+            // Note: Dashboard se data aana chahiye, lekin agar direct URL hit kiya
+            // to hum fetch kar sakte hain (Optional logic)
+            console.log("Loading project ID:", pid);
+            
+            // Fetch specific project logic (API route required: /api/projects/[id])
+             const response = await fetch(`${API_BASE}/api/projects/${pid}`);
+             if (response.ok) {
+                 const data = await response.json();
+                 if (data.nodes) setNodes(data.nodes);
+                 if (data.edges) setEdges(data.edges);
+                 if (data.name) setProjectName(data.name);
+                 toast.success(`Loaded: ${data.name}`);
+             }
         } catch (error: any) {
             console.error("Load Error:", error);
-            toast.error(`Load Failed: ${error.message}`);
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast, setNodes, setEdges, setProjectName]);
 
     return { saveProject, loadProject, saving, loading };
 }

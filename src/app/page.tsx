@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation'; // 👈 Import this
+import { useSearchParams } from 'next/navigation';
 import FlowEditor from '@/components/FlowEditor';
 import NebulaJourney from '@/components/NebulaJourney';
 
